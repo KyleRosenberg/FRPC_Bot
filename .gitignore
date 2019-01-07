@@ -16,3 +16,5 @@ unowns
 trades.json
 
 trade.json
+
+*.bash

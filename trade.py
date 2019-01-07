@@ -249,6 +249,170 @@ class Trader:
             log('Exception in doHave')
             await self.client.add_reaction(self.message, '👎')
 
+    async def doEditMatch(self, reaction):
+        pages = ['0️⃣', '1⃣', '2⃣', '3⃣', '4⃣', '5⃣', '6⃣', '7⃣', '8⃣', '9⃣']
+        page = -1
+        for r in self.message.reactions:
+            try:
+                ind = pages.index(r.emoji)
+                page = ind
+                break
+            except ValueError:
+                pass
+        if page==-1:
+            print('Weird error')
+            return
+        if reaction.emoji == '➡':
+            page+=1
+        else:
+            page-=1
+        for r in self.message.reactions:
+            reactors = await self.client.get_reaction_users(r)
+            for re in reactors:
+                await self.client.remove_reaction(self.message, r.emoji, re)
+        e = self.message.embeds[0]
+        sender = e['footer']['text']
+        type = e['fields'][0]['name']
+        sender_haves = self.getEntriesFromUser(sender, self.haves)
+        sender_wants = self.getEntriesFromUser(sender, self.wants)
+        matches_h_w = []
+        for hi in self.haves:
+            if hi['active']==False:
+                continue
+            for hj in sender_wants:
+                if hj['active']==False:
+                    continue
+                if hi['owner']!=hj['owner']:
+                    if hi['pokemon']==hj['pokemon'] and hi['shiny']==hj['shiny'] and hi['legacy']==hj['legacy'] and hi['event']==hj['event'] and (hi not in matches_h_w):
+                        matches_h_w.append(hi)
+
+        matches_w_h = []
+        for hi in self.wants:
+            if hi['active']==False:
+                continue
+            for hj in sender_haves:
+                if hj['active']==False:
+                    continue
+                if hi['owner']!=hj['owner']:
+                    if hi['pokemon']==hj['pokemon'] and hi['shiny']==hj['shiny'] and hi['legacy']==hj['legacy'] and hi['event']==hj['event'] and (hi not in matches_w_h):
+                        matches_w_h.append(hi)
+
+        newh = []
+        neww = []
+        super_matches = []
+        for h in matches_h_w:
+            for w in matches_w_h:
+                if h['owner']==w['owner']:
+                    super_matches.append((h, w))
+
+        for s in super_matches:
+            newh.append(s[0])
+            neww.append(s[1])
+
+        nh = [h for h in matches_h_w if h not in newh]
+        nw = [h for h in matches_w_h if h not in neww]
+
+        matches_h_w = sorted(nh, key=lambda k:k['owner'].lower())
+        matches_w_h = sorted(nw, key=lambda k:k['owner'].lower())
+
+        embed = discord.Embed()
+        if type=='People that Have what you Want':
+            i = 0
+            for k in range(page):
+                reply = ''
+                reply_good = True
+                while i < len(matches_h_w) and reply_good:
+                    o = matches_h_w[i]['owner']
+                    theirs = ''
+                    tarray = []
+                    while i < len(matches_h_w) and matches_h_w[i]['owner']==o and reply_good:
+                        m = matches_h_w[i]
+                        t = self.getPokeString(m)
+                        if len(reply + theirs + t + ', ')<1000:
+                            theirs += t + ', '
+                            tarray.append(t)
+                        else:
+                            reply_good = False
+                        i+=1
+                    if len(tarray)>0:
+                        reply += '{}: {}\n'.format(o, ', '.join(tarray))
+                    #i+=1
+                if reply=='':
+                    reply = 'No one :('
+            embed.add_field(name='People that Have what you Want', value=reply, inline=False)
+            embed.set_footer(text=sender)
+            m = await self.client.edit_message(self.message, new_content='', embed=embed)
+            if page > 1:
+                await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
+            await self.client.add_reaction(m, pages[page])
+            if not reply_good:
+                await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+        elif type=='People that Want what you Have':
+            i = 0
+            for k in range(page):
+                reply = ''
+                reply_good = True
+                while i < len(matches_w_h) and reply_good:
+                    o = matches_w_h[i]['owner']
+                    theirs = ''
+                    tarray = []
+                    while i < len(matches_w_h) and matches_w_h[i]['owner']==o and reply_good:
+                        m = matches_w_h[i]
+                        t = self.getPokeString(m)
+                        if len(reply + theirs + t + ', ')<1000:
+                            theirs += t
+                            tarray.append(t)
+                        else:
+                            reply_good = False
+                        i+=1
+                    if len(tarray)>0:
+                        reply += '{}: {}\n'.format(o, ', '.join(tarray))
+                    #i+=1
+                if reply=='':
+                    reply = 'No one :('
+            embed.add_field(name='People that Want what you Have', value=reply, inline=False)
+            embed.set_footer(text=sender)
+            m = await self.client.edit_message(self.message, new_content='', embed=embed)
+            if page > 1:
+                await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
+            await self.client.add_reaction(m, pages[page])
+            if not reply_good:
+                await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+        elif type=='Super Matches':
+            super_matches_sorted = sorted(super_matches, key=lambda k:k[0]['owner'])
+            i = 0
+            for k in range(page):
+                reply = ''
+                reply_good = True
+                while i < len(super_matches_sorted) and reply_good:
+                    o = super_matches_sorted[i][0]['owner']
+                    theirs = []
+                    yours = []
+                    while i < len(super_matches_sorted) and super_matches_sorted[i][0]['owner']==o and reply_good:
+                        m = super_matches_sorted[i]
+                        t = self.getPokeString(m[0])
+                        if t not in theirs:
+                            theirs.append(t)
+                        y = self.getPokeString(m[1])
+                        if y not in yours:
+                            yours.append(y)
+                        i+=1
+                    r = '{}\'s {} <-> {}\n'.format(o, ', '.join(theirs), ', '.join(yours))
+                    if len(r+reply)<1000:
+                        reply += r
+                    else:
+                        reply_good = False
+                if reply=='':
+                    reply = 'No one :('
+            embed.add_field(name='Super Matches', value=reply, inline=False)
+            embed.set_footer(text=sender)
+            m = await self.client.edit_message(self.message, new_content='', embed=embed)
+            if page > 1:
+                await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
+            await self.client.add_reaction(m, pages[page])
+            if not reply_good:
+                await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+
     async def doMatch(self, content):
         sender = self.message.author.name
         if self.message.author.id=='81881597757882368' and len(content)>0:
@@ -294,13 +458,10 @@ class Trader:
             neww.append(s[1])
 
         nh = [h for h in matches_h_w if h not in newh]
-        print(matches_w_h)
         nw = [h for h in matches_w_h if h not in neww]
 
         matches_h_w = sorted(nh, key=lambda k:k['owner'].lower())
-        print(nw)
         matches_w_h = sorted(nw, key=lambda k:k['owner'].lower())
-        print(matches_w_h)
 
         embed = discord.Embed()
 
@@ -333,7 +494,10 @@ class Trader:
             reply = 'No one :('
         embed.add_field(name='People that Have what you Want', value=reply, inline=False)
         embed.set_footer(text=sender)
-        await self.client.send_message(self.message.channel, content='', embed=embed)
+        m = await self.client.send_message(self.message.channel, content='', embed=embed)
+        if not reply_good:
+            await self.client.add_reaction(m, '1⃣')
+            await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
 
         embed = discord.Embed()
         reply = ''
@@ -359,17 +523,22 @@ class Trader:
             reply = 'No one :('
         embed.add_field(name='People that Want what you Have', value=reply, inline=False)
         embed.set_footer(text=sender)
-        await self.client.send_message(self.message.channel, content='', embed=embed)
+        m = await self.client.send_message(self.message.channel, content='', embed=embed)
+        if not reply_good:
+            await self.client.add_reaction(m, '1⃣')
+            await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+            #await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
 
         embed = discord.Embed()
         reply = ''
         super_matches_sorted = sorted(super_matches, key=lambda k:k[0]['owner'])
         i = 0
-        while i < len(super_matches_sorted):
+        reply_good = True
+        while i < len(super_matches_sorted) and reply_good:
             o = super_matches_sorted[i][0]['owner']
             theirs = []
             yours = []
-            while i < len(super_matches_sorted) and super_matches_sorted[i][0]['owner']==o:
+            while i < len(super_matches_sorted) and super_matches_sorted[i][0]['owner']==o and reply_good:
                 m = super_matches_sorted[i]
                 t = self.getPokeString(m[0])
                 if t not in theirs:
@@ -381,13 +550,17 @@ class Trader:
             r = '{}\'s {} <-> {}\n'.format(o, ', '.join(theirs), ', '.join(yours))
             if len(r+reply)<1000:
                 reply += r
+            else:
+                reply_good = False
             #i+=1
         if reply=='':
             reply = 'No one :('
         embed.add_field(name='Super Matches', value=reply, inline=False)
         embed.set_footer(text=sender)
-        await self.client.send_message(self.message.channel, content='', embed=embed)
-        #await self.client.send_message(self.message.channel, content=reply)
+        m = await self.client.send_message(self.message.channel, content='', embed=embed)
+        if not reply_good:
+            await self.client.add_reaction(m, '1⃣')
+            await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
 
     def getPokeString(self, d):
         ret = ''

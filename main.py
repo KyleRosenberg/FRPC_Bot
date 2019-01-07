@@ -71,6 +71,23 @@ async def on_member_join(member):
     log(member.name + ' joined the server')
 
 @client.event
+async def on_reaction_add(reaction, user):
+	if user==client.user:
+		return
+	message = reaction.message
+	try:
+		e = message.embeds[0]
+		if user.name != e['footer']['text'] and user.id!='81881597757882368':
+			return
+	except:
+		return
+	r = reaction.emoji
+	if r != '➡' and r != '⬅':
+		return
+	t = Trader(client, message, pokedata)
+	await t.doEditMatch(reaction)
+
+@client.event
 async def on_message(message):
     if message.author==client.user:
         return
@@ -116,7 +133,7 @@ async def on_message(message):
         if message.channel.name == 'role-assignment' or message.channel.name == 'porygons-playground' or message.channel.name == 'bot-test':
             await parseCommand(message)
             return
-        elif message.channel.name == 'trades':
+        elif message.channel.name == 'trades_test' or message.channel.name == 'trades':
             t = Trader(client, message, pokedata)
             if message.author.id == '448855673623805966':
                 pass#await client.delete_message(message)
