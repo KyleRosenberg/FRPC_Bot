@@ -133,7 +133,7 @@ async def on_message(message):
         if message.channel.name == 'role-assignment' or message.channel.name == 'porygons-playground' or message.channel.name == 'bot-test':
             await parseCommand(message)
             return
-        elif message.channel.name == 'trades_test' or message.channel.name == 'trades':
+        elif message.channel.name == 'trades_test' or message.channel.name == 'trades' or message.channel.name == 'trading':
             t = Trader(client, message, pokedata)
             if message.author.id == '448855673623805966':
                 pass#await client.delete_message(message)
@@ -260,7 +260,7 @@ async def doPokeStats(message, content):
     bestscore = np.infty
     if poke.isdigit():
         for p in pokedata:
-            if poke==p['names'][0]:
+            if int(poke)==p['names'][0]:
                 best = p
                 bestscore = 0
     else:
@@ -320,7 +320,7 @@ async def setUserRole(message, content):
                 bestRole = r
         differentiation = bestScore/len(content)
         valid = ['VALOR', 'MYSTIC', 'INSTINCT', 'DailyRaider', 'NOBORaider', 'SOBORaider', 'PearlStreetRaider', 'CURaider', 'exraider']
-        validColors = [discord.Color(0x1f8b4c)]
+        validColors = [discord.Color(0x49412b)]
         if (not bestRole.name in valid) and (not bestRole.color in validColors):
             differentiation = 1
         if differentiation < .15:
@@ -333,17 +333,23 @@ async def setUserRole(message, content):
                         log('User {} trying to assign another team.'.format(message.author.name))
                         return
                 if v:
-                    log('Assigning ' + message.author.name + ' ' + bestRole.name)
-                    await client.send_message(message.author, content='I have assigned you to the role {}. If this is a mistake, please contact a Moderator or an Admin for further assistance.'.format(bestRole.name))
-                    await client.add_roles(message.author, bestRole)
-                    return
+                	log('Assigning ' + message.author.name + ' ' + bestRole.name)
+                	try:
+                		await client.send_message(message.author, content='I have assigned you to the role {}. If this is a mistake, please contact a Moderator or an Admin for further assistance.'.format(bestRole.name))
+                	except:
+                		log('Failed to message ' + message.author.name)
+                	try:
+                		await client.add_roles(message.author, bestRole)
+                	except:
+                		log('Failed to assign role to ' + message.author.name)
+                	return
             elif not bestRole.name in valid[:2]:
                 log('Unassigning ' + message.author.name + ' ' + bestRole.name)
                 await client.send_message(message.author, content='I have unassigned you from the role {}. If this is a mistake, please contact a Moderator or an Admin for further assistance.'.format(bestRole.name))
                 await client.remove_roles(message.author, bestRole)
                 return
         else:
-            #log('Message not understood: {}'.format(content))
+            log('Message not understood: {}'.format(content))
             await client.add_reaction(message, '👎')
 
 def userHasRole(user, role):

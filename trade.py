@@ -6,6 +6,8 @@ import discord
 import datetime
 import pytz
 
+from network import Network
+
 def log(message):
     file = open('logs.txt', 'a')
     d = datetime.datetime.now()
@@ -47,6 +49,21 @@ class Trader:
                 'wants': self.wants
             }, f)
 
+        weights_file = 'weights.nn'
+        biases_file = 'biases.nn'
+        weights = []
+        biases = []
+        print('Reading weights from %s' % weights_file)
+        with open(weights_file, 'r') as f:
+            weights = json.loads(f.read())
+        print('Reading biases from %s' % biases_file)
+        with open(biases_file, 'r') as f:
+            biases = json.loads(f.read())
+
+        self.nn = Network([10, 5, 1])
+        self.nn.weights = weights
+        self.nn.biases = biases
+
 
     async def doCommand(self):
         content = self.content
@@ -55,8 +72,8 @@ class Trader:
             firstspace=len(content)
         command = content[:firstspace]
         rest = content[firstspace+1 :]
-        coms = ['.trade', '.want', '.unwant', '.have', '.unhave', '.match', '.profile']
-        funcs = [self.doTrade, self.doWant, self.doUnWant, self.doHave, self.doUnHave, self.doMatch, self.doProfile]
+        coms = ['.trade', '.want', '.unwant', '.have', '.unhave', '.match', '.profile', '.clear', '.unclear']
+        funcs = [self.doTrade, self.doWant, self.doUnWant, self.doHave, self.doUnHave, self.doMatch, self.doProfile, self.clear, self.unclear]
         scores = [similarityDistance(command, i)/len(command) for i in coms]
         lowest = np.min(scores)
         index = np.argmin(scores)
@@ -101,43 +118,65 @@ class Trader:
         pokemon['pokemon'] = best['names'][1]
         pokemon['active'] = True
         pokemon['owner'] = self.message.author.name
+        pokemon['stats'] = best
         return pokemon
 
     def sameDict(self, a, b):
-        if len(a)!=len(b):
+        if len(a)!=len(b) and 'stats' not in a and 'stats' not in b:
             return False
         for k in a:
             if k not in b:
                 return False
-            if a[k]!=b[k] and k!='active':
+            if a[k]!=b[k] and k!='active' and k!='stats':
+                print(k)
                 return False
         return True
 
+    async def clear(self, content):
+        for h in self.haves:
+            if h['owner']==self.message.author.name:
+                h['active'] = False
+        for w in self.wants:
+            if w['owner'] == self.message.author.name:
+                w['active'] = False
+        with open('{}.json'.format(self.message.server.id), 'w') as f:
+            json.dump({
+                'haves': self.haves,
+                'wants': self.wants
+            }, f)
+        await self.client.add_reaction(self.message, '👍')
+
+    async def unclear(self, content):
+        for h in self.haves:
+            if h['owner']==self.message.author.name:
+                h['active'] = True
+        for w in self.wants:
+            if w['owner'] == self.message.author.name:
+                w['active'] = True
+        with open('{}.json'.format(self.message.server.id), 'w') as f:
+            json.dump({
+                'haves': self.haves,
+                'wants': self.wants
+            }, f)
+        await self.client.add_reaction(self.message, '👍')
+
     async def doTrade(self, content):
-        p = re.compile('(shiny )?(.+), ?(shiny )?(.+)')
-        m = p.search(content)
-        #TODO: Convert to findall maybe
-        s1 = str(m.group(1))
-        p1 = str(m.group(2))
-        s2 = str(m.group(3))
-        p2 = str(m.group(4))
-        best1 = None
-        bs1 = np.infty
-        best2 = None
-        bs2 = np.infty
-        for p in self.pokedata:
-            sc1 = similarityDistance(p1, p['names'][1].lower())
-            sc2 = similarityDistance(p2, p['names'][1].lower())
-            if sc1 < bs1:
-                bs1 = sc1
-                best1 = p
-            if sc2 < bs2:
-                bs2 = sc2
-                best2 = p
-        score1 = self.scorePokemon(best1, s1)
-        score2 = self.scorePokemon(best2, s2)
-        reply = '{} worth {} for {} worth {}'.format(best1['names'][1], score1, best2['names'][1], score2)
-        await self.client.send_message(self.message.channel, content=reply)
+        sp = content.split(',')
+        try:
+            d1 = self.getPokemonDetails(sp[0])
+            d2 = self.getPokemonDetails(sp[1])
+            if d1 == None:
+                await self.client.add_reaction(self.message, '👎')
+                return
+            if d2 == None:
+                await self.client.add_reaction(self.message, '👎')
+                return
+            score = self.scorePokemon(d1, d2)
+            reply = '{} for {} and {}'.format('Fair' if score>0.5 else 'Unfair', self.getPokeString(d1), self.getPokeString(d2))
+            await self.client.send_message(self.message.channel, content=reply)
+        except Exception as e:
+            log('Exception in trade: {}'.format(e))
+            await self.client.add_reaction(self.message, '👎')
 
     async def doHave(self, content):
         try:
@@ -191,7 +230,7 @@ class Trader:
                         'wants': self.wants
                     }, f)
         except:
-            log('Exception in doHave')
+            log('Exception in doUnhave')
             await self.client.add_reaction(self.message, '👎')
 
     async def doWant(self, content):
@@ -221,7 +260,7 @@ class Trader:
                     }, f)
                 #await self.client.add_reaction(self.message, '👍')
         except:
-            log('Exception in doHave')
+            log('Exception in doWant')
             await self.client.add_reaction(self.message, '👎')
 
     async def doUnWant(self, content):
@@ -246,7 +285,7 @@ class Trader:
                         'wants': self.wants
                     }, f)
         except:
-            log('Exception in doHave')
+            log('Exception in doUnwant')
             await self.client.add_reaction(self.message, '👎')
 
     async def doEditMatch(self, reaction):
@@ -604,9 +643,16 @@ class Trader:
     def getEntriesFromUser(self, user, list):
         return [l for l in list if l['owner'].lower()==user.lower()]
 
-    def scorePokemon(self, pokemon, shiny):
-        score = 0
-        score += int(pokemon['rank'])
-        if shiny=='shiny ':
-            score += 1
+    def scorePokemon(self, p1, p2):
+        sh1 = int(p1['shiny'])
+        sh2 = int(p2['shiny'])
+        a1 = int(p1['stats']['attack'])
+        a2 = int(p2['stats']['attack'])
+        d1 = int(p1['stats']['defense'])
+        d2 = int(p2['stats']['defense'])
+        s1 = int(p1['stats']['stamina'])
+        s2 = int(p2['stats']['stamina'])
+        cr1 = int(p1['stats']['capture_rate'])
+        cr2 = int(p2['stats']['capture_rate'])
+        score = self.nn.feedforward([sh1, sh2, a1, a2, d1, d2, s1, s2, cr1, cr2])
         return score
