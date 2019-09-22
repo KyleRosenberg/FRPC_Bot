@@ -25,7 +25,7 @@ class Trader:
         self.message = m
         self.pokedata = p
         try:
-            with open('{}.json'.format(self.message.server.id)) as f:
+            with open('{}.json'.format(self.message.guild.id)) as f:
                 data = json.load(f)
                 self.wants = data['wants']
                 self.haves = data['haves']
@@ -43,7 +43,7 @@ class Trader:
             if 'legacy' not in h:
                 h['legacy'] = False
 
-        with open('{}.json'.format(self.message.server.id), 'w') as f:
+        with open('{}.json'.format(self.message.guild.id), 'w') as f:
             json.dump({
                 'haves': self.haves,
                 'wants': self.wants
@@ -64,7 +64,6 @@ class Trader:
         self.nn.weights = weights
         self.nn.biases = biases
 
-
     async def doCommand(self):
         content = self.content
         firstspace = content.find(' ', 4)
@@ -81,13 +80,13 @@ class Trader:
             pass
             '''
             con = 'Command not recognized {} {}'.format(command, self.message.author.mention)
-            await self.client.send_message(self.message.channel, content=con)
+            await self.message.channel.send(content=con)
             '''
         else:
             if index >=0 and index<len(funcs):
                 await funcs[index](rest)
             else:
-                await self.client.send_message(self.message.channel, content='This error shouldn\'t happen. Command not matched.')
+                await self.message.channel.send(content='This error shouldn\'t happen. Command not matched.')
 
     def getPokemonDetails(self, content):
         pokemon = {}
@@ -125,10 +124,11 @@ class Trader:
         if len(a)!=len(b) and 'stats' not in a and 'stats' not in b:
             return False
         for k in a:
+            if k=='active' or k=='stats':
+                continue
             if k not in b:
                 return False
-            if a[k]!=b[k] and k!='active' and k!='stats':
-                print(k)
+            if a[k]!=b[k]:
                 return False
         return True
 
@@ -139,12 +139,12 @@ class Trader:
         for w in self.wants:
             if w['owner'] == self.message.author.name:
                 w['active'] = False
-        with open('{}.json'.format(self.message.server.id), 'w') as f:
+        with open('{}.json'.format(self.message.guild.id), 'w') as f:
             json.dump({
                 'haves': self.haves,
                 'wants': self.wants
             }, f)
-        await self.client.add_reaction(self.message, '👍')
+        await self.message.add_reaction('👍')
 
     async def unclear(self, content):
         for h in self.haves:
@@ -153,12 +153,12 @@ class Trader:
         for w in self.wants:
             if w['owner'] == self.message.author.name:
                 w['active'] = True
-        with open('{}.json'.format(self.message.server.id), 'w') as f:
+        with open('{}.json'.format(self.message.guild.id), 'w') as f:
             json.dump({
                 'haves': self.haves,
                 'wants': self.wants
             }, f)
-        await self.client.add_reaction(self.message, '👍')
+        await self.message.add_reaction('👍')
 
     async def doTrade(self, content):
         sp = content.split(',')
@@ -166,23 +166,24 @@ class Trader:
             d1 = self.getPokemonDetails(sp[0])
             d2 = self.getPokemonDetails(sp[1])
             if d1 == None:
-                await self.client.add_reaction(self.message, '👎')
+                await self.message.add_reaction('👎')
                 return
             if d2 == None:
-                await self.client.add_reaction(self.message, '👎')
+                await self.message.add_reaction('👎')
                 return
             score = self.scorePokemon(d1, d2)
-            reply = '{} for {} and {}'.format('Fair' if score>0.5 else 'Unfair', self.getPokeString(d1), self.getPokeString(d2))
-            await self.client.send_message(self.message.channel, content=reply)
+            reply = '{} ({}) for {} and {}'.format('Fair' if score>0.5 else 'Unfair', score, self.getPokeString(d1), self.getPokeString(d2))
+            await self.message.channel.send(content=reply)
         except Exception as e:
+            print(e)
             log('Exception in trade: {}'.format(e))
-            await self.client.add_reaction(self.message, '👎')
+            await self.message.add_reaction('👎')
 
     async def doHave(self, content):
         try:
             d = self.getPokemonDetails(content)
             if d == None:
-                await self.client.add_reaction(self.message, '👎')
+                await self.message.add_reaction('👎')
             else:
                 add = True
                 same = False
@@ -195,24 +196,24 @@ class Trader:
                 if add:
                     self.haves.append(d)
                 if not same:
-                    await self.client.add_reaction(self.message, '👍')
+                    await self.message.add_reaction('👍')
                 else:
-                    await self.client.add_reaction(self.message, '👊')
-                with open('{}.json'.format(self.message.server.id), 'w') as f:
+                    await self.message.add_reaction('👊')
+                with open('{}.json'.format(self.message.guild.id), 'w') as f:
                     json.dump({
                         'haves': self.haves,
                         'wants': self.wants
                     }, f)
-                #await self.client.add_reaction(self.message, '👍')
+                #await self.message.add_reaction('👍')
         except:
             log('Exception in doHave')
-            await self.client.add_reaction(self.message, '👎')
+            await self.message.add_reaction('👎')
 
     async def doUnHave(self, content):
         try:
             d = self.getPokemonDetails(content)
             if d == None:
-                await self.client.add_reaction(self.message, '👎')
+                await self.message.add_reaction('👎')
             else:
                 had = False
                 for h in self.haves:
@@ -221,27 +222,30 @@ class Trader:
                         had = True
                         break
                 if had:
-                    await self.client.add_reaction(self.message, '👍')
+                    await self.message.add_reaction('👍')
                 else:
-                    await self.client.add_reaction(self.message, '👊')
-                with open('{}.json'.format(self.message.server.id), 'w') as f:
+                    await self.message.add_reaction('👊')
+                with open('{}.json'.format(self.message.guild.id), 'w') as f:
                     json.dump({
                         'haves': self.haves,
                         'wants': self.wants
                     }, f)
         except:
             log('Exception in doUnhave')
-            await self.client.add_reaction(self.message, '👎')
+            await self.message.add_reaction('👎')
 
     async def doWant(self, content):
         try:
             d = self.getPokemonDetails(content)
+            print(d)
             if d == None:
-                await self.client.add_reaction(self.message, '👎')
+                await self.message.add_reaction('👎')
             else:
+                print(d)
                 add = True
                 same = False
                 for h in self.wants:
+                    print(h, d)
                     if self.sameDict(h, d):
                         same = h['active']
                         h['active']=True
@@ -250,24 +254,24 @@ class Trader:
                 if add:
                     self.wants.append(d)
                 if not same:
-                    await self.client.add_reaction(self.message, '👍')
+                    await self.message.add_reaction('👍')
                 else:
-                    await self.client.add_reaction(self.message, '👊')
-                with open('{}.json'.format(self.message.server.id), 'w') as f:
+                    await self.message.add_reaction('👊')
+                with open('{}.json'.format(self.message.guild.id), 'w') as f:
                     json.dump({
                         'haves': self.haves,
                         'wants': self.wants
                     }, f)
-                #await self.client.add_reaction(self.message, '👍')
+                #await self.message.add_reaction('👍')
         except:
             log('Exception in doWant')
-            await self.client.add_reaction(self.message, '👎')
+            await self.message.add_reaction('👎')
 
     async def doUnWant(self, content):
         try:
             d = self.getPokemonDetails(content)
             if d == None:
-                await self.client.add_reaction(self.message, '👎')
+                await self.message.add_reaction('👎')
             else:
                 had = False
                 for h in self.wants:
@@ -276,17 +280,17 @@ class Trader:
                         had = True
                         break
                 if had:
-                    await self.client.add_reaction(self.message, '👍')
+                    await self.message.add_reaction('👍')
                 else:
-                    await self.client.add_reaction(self.message, '👊')
-                with open('{}.json'.format(self.message.server.id), 'w') as f:
+                    await self.message.add_reaction('👊')
+                with open('{}.json'.format(self.message.guild.id), 'w') as f:
                     json.dump({
                         'haves': self.haves,
                         'wants': self.wants
                     }, f)
         except:
             log('Exception in doUnwant')
-            await self.client.add_reaction(self.message, '👎')
+            await self.message.add_reaction('👎')
 
     async def doEditMatch(self, reaction):
         pages = ['0️⃣', '1⃣', '2⃣', '3⃣', '4⃣', '5⃣', '6⃣', '7⃣', '8⃣', '9⃣']
@@ -382,10 +386,10 @@ class Trader:
             embed.set_footer(text=sender)
             m = await self.client.edit_message(self.message, new_content='', embed=embed)
             if page > 1:
-                await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
-            await self.client.add_reaction(m, pages[page])
+                await m.add_reaction('\N{LEFTWARDS BLACK ARROW}')
+            await m.add_reaction(pages[page])
             if not reply_good:
-                await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+                await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
         elif type=='People that Want what you Have':
             i = 0
             for k in range(page):
@@ -413,10 +417,10 @@ class Trader:
             embed.set_footer(text=sender)
             m = await self.client.edit_message(self.message, new_content='', embed=embed)
             if page > 1:
-                await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
-            await self.client.add_reaction(m, pages[page])
+                await m.add_reaction('\N{LEFTWARDS BLACK ARROW}')
+            await m.add_reaction(pages[page])
             if not reply_good:
-                await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+                await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
         elif type=='Super Matches':
             super_matches_sorted = sorted(super_matches, key=lambda k:k[0]['owner'])
             i = 0
@@ -447,10 +451,10 @@ class Trader:
             embed.set_footer(text=sender)
             m = await self.client.edit_message(self.message, new_content='', embed=embed)
             if page > 1:
-                await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
-            await self.client.add_reaction(m, pages[page])
+                await m.add_reaction('\N{LEFTWARDS BLACK ARROW}')
+            await m.add_reaction(pages[page])
             if not reply_good:
-                await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+                await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
 
     async def doMatch(self, content):
         sender = self.message.author.name
@@ -533,10 +537,10 @@ class Trader:
             reply = 'No one :('
         embed.add_field(name='People that Have what you Want', value=reply, inline=False)
         embed.set_footer(text=sender)
-        m = await self.client.send_message(self.message.channel, content='', embed=embed)
+        m = await self.message.channel.send(content='', embed=embed)
         if not reply_good:
-            await self.client.add_reaction(m, '1⃣')
-            await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+            await m.add_reaction('1⃣')
+            await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
 
         embed = discord.Embed()
         reply = ''
@@ -562,11 +566,11 @@ class Trader:
             reply = 'No one :('
         embed.add_field(name='People that Want what you Have', value=reply, inline=False)
         embed.set_footer(text=sender)
-        m = await self.client.send_message(self.message.channel, content='', embed=embed)
+        m = await self.message.channel.send(content='', embed=embed)
         if not reply_good:
-            await self.client.add_reaction(m, '1⃣')
-            await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
-            #await self.client.add_reaction(m, '\N{LEFTWARDS BLACK ARROW}')
+            await m.add_reaction('1⃣')
+            await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
+            #await m.add_reaction('\N{LEFTWARDS BLACK ARROW}')
 
         embed = discord.Embed()
         reply = ''
@@ -596,10 +600,10 @@ class Trader:
             reply = 'No one :('
         embed.add_field(name='Super Matches', value=reply, inline=False)
         embed.set_footer(text=sender)
-        m = await self.client.send_message(self.message.channel, content='', embed=embed)
+        m = await self.message.channel.send(content='', embed=embed)
         if not reply_good:
-            await self.client.add_reaction(m, '1⃣')
-            await self.client.add_reaction(m, '\N{BLACK RIGHTWARDS ARROW}')
+            await m.add_reaction('1⃣')
+            await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
 
     def getPokeString(self, d):
         ret = ''
@@ -638,7 +642,7 @@ class Trader:
         if reply=='':
             reply = 'Nothing'
         embed.add_field(name='What you have:', value=reply, inline=False)
-        await self.client.send_message(self.message.channel, content='', embed=embed)
+        await self.message.channel.send(content='', embed=embed)
 
     def getEntriesFromUser(self, user, list):
         return [l for l in list if l['owner'].lower()==user.lower()]
@@ -646,13 +650,15 @@ class Trader:
     def scorePokemon(self, p1, p2):
         sh1 = int(p1['shiny'])
         sh2 = int(p2['shiny'])
-        a1 = int(p1['stats']['attack'])
-        a2 = int(p2['stats']['attack'])
-        d1 = int(p1['stats']['defense'])
-        d2 = int(p2['stats']['defense'])
-        s1 = int(p1['stats']['stamina'])
-        s2 = int(p2['stats']['stamina'])
+        a1 = int(p1['stats']['ATK'])
+        a2 = int(p2['stats']['ATK'])
+        d1 = int(p1['stats']['DEF'])
+        d2 = int(p2['stats']['DEF'])
+        s1 = int(p1['stats']['STA'])
+        s2 = int(p2['stats']['STA'])
         cr1 = int(p1['stats']['capture_rate'])
         cr2 = int(p2['stats']['capture_rate'])
-        score = self.nn.feedforward([sh1, sh2, a1, a2, d1, d2, s1, s2, cr1, cr2])
+        inputs = [sh1, sh2, a1, a2, d1, d2, s1, s2, cr1, cr2]
+        print(inputs)
+        score = self.nn.feedforward(inputs)
         return score
