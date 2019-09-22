@@ -123,10 +123,10 @@ async def on_message(message):
 							bscore = s
 				if best is not None and bscore<.1:
 					if c=='.iam':
-						await client.add_roles(message.author, best)
+						await message.author.add_roles(best)
 						return
 					if c=='.iamnot':
-						await client.remove_roles(message.author, best)
+						await message.author.remove_roles(best)
 						return
 				else:
 					await message.channel.send('No role detected')
@@ -317,7 +317,7 @@ async def doPokeStats(message, content):
 		pcp = np.max([10.0, np.floor(np.sqrt(psta)*patt*np.sqrt(pdef)*c**2/10.0)])
 		reply = '```CP: {}\nHP: {}\nAttack: {}\nDefense: {}```'.format(int(pcp), int(psta*c), int(patt*c), int(pdef*c))
 		embed.add_field(name='100% IV at level {}'.format(l), value=reply, inline=False)
-		
+
 	''' Move scraping got messed up idk
 	fast_moves = best['fast_moves'] + [l + "*" for l in best['legacy_fast_moves']]
 	embed.add_field(name='Fast Moves (*=legacy)', value=",".join(fast_moves))
@@ -372,8 +372,8 @@ async def setUserRole(message, content):
 					except:
 						log('Failed to message ' + message.author.name)
 					try:
-						await client.add_roles(message.author, bestRole)
-					except:
+						await message.author.add_roles(bestRole)
+					except Exception as e:
 						log('Failed to assign role to ' + message.author.name)
 					return
 			elif not bestRole.name in valid[:2]:
