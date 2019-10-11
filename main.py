@@ -93,7 +93,7 @@ async def on_message(message):
 	if message.author==client.user:
 		return
 	if isinstance(message.channel, discord.DMChannel):
-		log(message.author + ' send me a private message that said "{}"'.format(message.clean_content))
+		log(str(message.author) + ' send me a private message that said "{}"'.format(message.clean_content))
 		await message.channel.send(content='Sorry, I don\'t understand private messages yet. If you think this is a mistake, please message an Admin or Moderator.')
 		return
 	elif message.guild.id=='486556505668059141':
