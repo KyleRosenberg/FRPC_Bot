@@ -353,7 +353,7 @@ async def setUserRole(message, content):
 				bestRole = r
 		differentiation = bestScore/len(content)
 		valid = ['VALOR', 'MYSTIC', 'INSTINCT', 'DailyRaider', 'exraider', 'boulderpvphunter'] + [n+'hundo' for n in ['boulder', 'longmont', 'gunbarrel', 'superior', 'louisville', 'lafayette']]
-		validColors = [discord.Color(0x49412b), discord.Color(0xc17b22)]
+		validColors = [discord.Color(0x49412b), discord.Color(0xc17b22), discord.Color(0x1f8b4c)]
 		if (not bestRole.name in valid) and (not bestRole.color in validColors):
 			differentiation = 1
 		if differentiation < .15:
