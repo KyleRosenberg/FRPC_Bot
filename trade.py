@@ -458,10 +458,13 @@ class Trader:
 
     async def doMatch(self, content):
         sender = self.message.author.name
-        if self.message.author.id=='81881597757882368' and len(content)>0:
+        if self.message.author.id=='81881597757882368' and len(content)>0 and content != "shiny":
             sender = content
         sender_haves = self.getEntriesFromUser(sender, self.haves)
         sender_wants = self.getEntriesFromUser(sender, self.wants)
+        if content=="shiny":
+            sender_haves = [h for h in sender_haves if h["shiny"]]
+            sender_wants = [w for w in sender_wants if w["shiny"]]
         matches_h_w = []
         for hi in self.haves:
             if hi['active']==False:
