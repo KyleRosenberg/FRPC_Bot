@@ -72,21 +72,19 @@ async def on_member_join(member):
 	log(member.name + ' joined the server')
 
 @client.event
-async def on_reaction_add(reaction, user):
+async def on_raw_reaction_add(payload):
+	channel = await client.fetch_channel(payload.channel_id)
+	message = await channel.fetch_message(payload.message_id)
+	user = await client.fetch_user(payload.user_id)
+	emoji = payload.emoji
 	if user==client.user:
 		return
-	message = reaction.message
-	try:
-		e = message.embeds[0]
-		if user.name != e['footer']['text'] and user.id!='81881597757882368':
-			return
-	except:
+
+	if emoji.name != '➡' and emoji.name != '⬅':
 		return
-	r = reaction.emoji
-	if r != '➡' and r != '⬅':
-		return
+
 	t = Trader(client, message, pokedata)
-	await t.doEditMatch(reaction)
+	await t.doEditMatch(emoji)
 
 @client.event
 async def on_message(message):
@@ -143,100 +141,100 @@ async def on_message(message):
 				pass#await client.delete_message(message)
 			else:
 				await t.doCommand()
-		elif message.channel.name == 'ivs':
-			imageurl = message.attachments[0]['url']
-			response = requests.get(imageurl)
-			img = Image.open(BytesIO(response.content))
-			ivs = await parseImage(img)
-			if ivs is None or len(ivs)==0:
-				await message.channel.send(content='Something went wrong.')
-			else:
-				await message.channel.send(content='{:.2f}%-{:.2f}%'.format(np.min(ivs), np.max(ivs)) + message.author.mention)
+		# elif message.channel.name == 'ivs':
+		# 	imageurl = message.attachments[0]['url']
+		# 	response = requests.get(imageurl)
+		# 	img = Image.open(BytesIO(response.content))
+		# 	ivs = await parseImage(img)
+		# 	if ivs is None or len(ivs)==0:
+		# 		await message.channel.send(content='Something went wrong.')
+		# 	else:
+		# 		await message.channel.send(content='{:.2f}%-{:.2f}%'.format(np.min(ivs), np.max(ivs)) + message.author.mention)
 
-async def parseImage(i):
-	try:
-		i = i.convert('L')                             # grayscale
-		i = i.filter(ImageFilter.MedianFilter())       # a little blur
-		i = i.point(lambda x: 0 if x < 150 else 255)   # threshold (binarize)
-		i = i.resize((750, 1334))
-		w, h = i.size
-		cpi = i.crop((w/3-10, h/15, 2*w/3, 11*h/100))
-		cpi.save('cp.png')
-		cp = image_to_string(cpi, config='outputbase digits')
-		p = re.compile('\d{2,4}')
-		m = p.search(cp)
-		cp = m.group(0)
-		print(cp)
-		print('CP:', cp)
+# async def parseImage(i):
+# 	try:
+# 		i = i.convert('L')                             # grayscale
+# 		i = i.filter(ImageFilter.MedianFilter())       # a little blur
+# 		i = i.point(lambda x: 0 if x < 150 else 255)   # threshold (binarize)
+# 		i = i.resize((750, 1334))
+# 		w, h = i.size
+# 		cpi = i.crop((w/3-10, h/15, 2*w/3, 11*h/100))
+# 		cpi.save('cp.png')
+# 		cp = image_to_string(cpi, config='outputbase digits')
+# 		p = re.compile('\d{2,4}')
+# 		m = p.search(cp)
+# 		cp = m.group(0)
+# 		print(cp)
+# 		print('CP:', cp)
 
-		ni = i.crop((w/5, 3*h/7, 4*w/5, 3.5*h/7))
-		ni.save('name.png')
-		name = image_to_string(ni)
-		print('Name:', name)
+# 		ni = i.crop((w/5, 3*h/7, 4*w/5, 3.5*h/7))
+# 		ni.save('name.png')
+# 		name = image_to_string(ni)
+# 		print('Name:', name)
 
-		hi = i.crop((w/5, 3.5*h/7, 4*w/5, 4*h/7))
-		hi.save('hp.png')
-		hp = image_to_string(hi, config='outputbase digits')
-		print(hp)
-		p = re.compile('\d+')
-		m = p.findall(hp)
-		print(m)
-		hp = m[0]
-		print('HP:', hp)
+# 		hi = i.crop((w/5, 3.5*h/7, 4*w/5, 4*h/7))
+# 		hi.save('hp.png')
+# 		hp = image_to_string(hi, config='outputbase digits')
+# 		print(hp)
+# 		p = re.compile('\d+')
+# 		m = p.findall(hp)
+# 		print(m)
+# 		hp = m[0]
+# 		print('HP:', hp)
 
-		si = i.crop((2*w/5, 5.5*h/7, 6*w/9, 6*h/7))
-		si.save('sd.png')
-		sd = image_to_string(si)[1:]
-		p = re.compile('\d{1,3}00')
-		m = p.search(sd)
-		sd = m.group(0)
-		print('Stardust:', sd)
+# 		si = i.crop((2*w/5, 5.5*h/7, 6*w/9, 6*h/7))
+# 		si.save('sd.png')
+# 		sd = image_to_string(si)[1:]
+# 		p = re.compile('\d{1,3}00')
+# 		m = p.search(sd)
+# 		sd = m.group(0)
+# 		print('Stardust:', sd)
 
-		sd = int(sd)
-		if sd<=1000:
-			level_range = (sd/100-1, sd/100+0.5)
-		elif sd<=2500:
-			it = (sd-1300)/300+0.5
-			level_range = (sd/100-it-1.5, sd/100-it)
-		elif sd<=5000:
-			it = (sd-3000)/500
-			level_range = (21+2*it, 21+2*it+1.5)
-		elif sd<=9000:
-			it = (sd-6000)/1000
-			level_range = (31+2*it, 31+2*it+1.5)
-		else:
-			level_range = (39, 39.5)
+# 		sd = int(sd)
+# 		if sd<=1000:
+# 			level_range = (sd/100-1, sd/100+0.5)
+# 		elif sd<=2500:
+# 			it = (sd-1300)/300+0.5
+# 			level_range = (sd/100-it-1.5, sd/100-it)
+# 		elif sd<=5000:
+# 			it = (sd-3000)/500
+# 			level_range = (21+2*it, 21+2*it+1.5)
+# 		elif sd<=9000:
+# 			it = (sd-6000)/1000
+# 			level_range = (31+2*it, 31+2*it+1.5)
+# 		else:
+# 			level_range = (39, 39.5)
 
-		print(level_range)
+# 		print(level_range)
 
-		for p in pokedata:
-			if name == p['names'][1]:
-				poke = p
-				break
+# 		for p in pokedata:
+# 			if name == p['names'][1]:
+# 				poke = p
+# 				break
 
-		matches = []
-		for i in range(4):
-			ind = int(level_range[0]*2+i-2)
-			if ind>=len(cpm):
-				break
-			c = cpm[ind]
-			for k in range(16):
-				psta = (int(poke['STA'])+k)
-				if int(np.floor(psta*c)) != int(hp):
-					continue
-				for j in range(16):
-					for i in range(16):
-						patt = (int(poke['ATK'])+i)
-						pdef = (int(poke['DEF'])+j)
-						pcp = np.max([10.0, np.floor(np.sqrt(psta)*patt*np.sqrt(pdef)*c**2/10.0)])
-						if int(pcp)==int(cp):
-							s = 'Match: A:{}, D:{}, S:{}: {:.2f}%, level {}'.format(i, j, k, (i+k+j)/45*100, ind/2+1)
-							matches.append((i+k+j)/45*100)
-							print(s)
-		return matches
-	except Exception as e:
-		print(e)
-		return None
+# 		matches = []
+# 		for i in range(4):
+# 			ind = int(level_range[0]*2+i-2)
+# 			if ind>=len(cpm):
+# 				break
+# 			c = cpm[ind]
+# 			for k in range(16):
+# 				psta = (int(poke['STA'])+k)
+# 				if int(np.floor(psta*c)) != int(hp):
+# 					continue
+# 				for j in range(16):
+# 					for i in range(16):
+# 						patt = (int(poke['ATK'])+i)
+# 						pdef = (int(poke['DEF'])+j)
+# 						pcp = np.max([10.0, np.floor(np.sqrt(psta)*patt*np.sqrt(pdef)*c**2/10.0)])
+# 						if int(pcp)==int(cp):
+# 							s = 'Match: A:{}, D:{}, S:{}: {:.2f}%, level {}'.format(i, j, k, (i+k+j)/45*100, ind/2+1)
+# 							matches.append((i+k+j)/45*100)
+# 							print(s)
+# 		return matches
+# 	except Exception as e:
+# 		print(e)
+# 		return None
 
 async def parseCommand(message):
 	content = str(message.clean_content).lower()
@@ -353,7 +351,7 @@ async def setUserRole(message, content):
 				bestRole = r
 		differentiation = bestScore/len(content)
 		valid = ['VALOR', 'MYSTIC', 'INSTINCT', 'DailyRaider', 'exraider', 'boulderpvphunter'] + [n+'hundo' for n in ['boulder', 'longmont', 'gunbarrel', 'superior', 'louisville', 'lafayette']]
-		validColors = [discord.Color(0x49412b), discord.Color(0xc17b22), discord.Color(0x1f8b4c)]
+		validColors = [discord.Color(0x49412b), discord.Color(0xc17b22), discord.Color(0x1f8b4c), discord.Color(0xff6600)]
 		if (not bestRole.name in valid) and (not bestRole.color in validColors):
 			differentiation = 1
 		if differentiation < .15:

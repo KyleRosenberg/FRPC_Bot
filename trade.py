@@ -53,10 +53,8 @@ class Trader:
         biases_file = 'biases.nn'
         weights = []
         biases = []
-        print('Reading weights from %s' % weights_file)
         with open(weights_file, 'r') as f:
             weights = json.loads(f.read())
-        print('Reading biases from %s' % biases_file)
         with open(biases_file, 'r') as f:
             biases = json.loads(f.read())
 
@@ -237,15 +235,12 @@ class Trader:
     async def doWant(self, content):
         try:
             d = self.getPokemonDetails(content)
-            print(d)
             if d == None:
                 await self.message.add_reaction('👎')
             else:
-                print(d)
                 add = True
                 same = False
                 for h in self.wants:
-                    print(h, d)
                     if self.sameDict(h, d):
                         same = h['active']
                         h['active']=True
@@ -292,7 +287,7 @@ class Trader:
             log('Exception in doUnwant')
             await self.message.add_reaction('👎')
 
-    async def doEditMatch(self, reaction):
+    async def doEditMatch(self, emoji):
         pages = ['0️⃣', '1⃣', '2⃣', '3⃣', '4⃣', '5⃣', '6⃣', '7⃣', '8⃣', '9⃣']
         page = -1
         for r in self.message.reactions:
@@ -305,17 +300,16 @@ class Trader:
         if page==-1:
             print('Weird error')
             return
-        if reaction.emoji == '➡':
+        if emoji.name == '➡':
             page+=1
         else:
             page-=1
-        for r in self.message.reactions:
-            reactors = await self.client.get_reaction_users(r)
-            for re in reactors:
-                await self.client.remove_reaction(self.message, r.emoji, re)
+        
+        await self.message.clear_reactions()
+
         e = self.message.embeds[0]
-        sender = e['footer']['text']
-        type = e['fields'][0]['name']
+        sender = e.footer.text
+        type = e.fields[0].name
         sender_haves = self.getEntriesFromUser(sender, self.haves)
         sender_wants = self.getEntriesFromUser(sender, self.wants)
         matches_h_w = []
@@ -359,7 +353,7 @@ class Trader:
         matches_w_h = sorted(nw, key=lambda k:k['owner'].lower())
 
         embed = discord.Embed()
-        if type=='People that Have what you Want':
+        if type=='Wants':
             i = 0
             for k in range(page):
                 reply = ''
@@ -371,7 +365,7 @@ class Trader:
                     while i < len(matches_h_w) and matches_h_w[i]['owner']==o and reply_good:
                         m = matches_h_w[i]
                         t = self.getPokeString(m)
-                        if len(reply + theirs + t + ', ')<1000:
+                        if len(reply + theirs + t + ', ')<900:
                             theirs += t + ', '
                             tarray.append(t)
                         else:
@@ -382,15 +376,15 @@ class Trader:
                     #i+=1
                 if reply=='':
                     reply = 'No one :('
-            embed.add_field(name='People that Have what you Want', value=reply, inline=False)
+            embed.add_field(name='Wants', value=reply, inline=False)
             embed.set_footer(text=sender)
-            m = await self.client.edit_message(self.message, new_content='', embed=embed)
+            await self.message.edit(new_content='', embed=embed)
             if page > 1:
-                await m.add_reaction('\N{LEFTWARDS BLACK ARROW}')
-            await m.add_reaction(pages[page])
+                await self.message.add_reaction('\N{LEFTWARDS BLACK ARROW}')
+            await self.message.add_reaction(pages[page])
             if not reply_good:
-                await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
-        elif type=='People that Want what you Have':
+                await self.message.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
+        elif type=='Haves':
             i = 0
             for k in range(page):
                 reply = ''
@@ -402,7 +396,7 @@ class Trader:
                     while i < len(matches_w_h) and matches_w_h[i]['owner']==o and reply_good:
                         m = matches_w_h[i]
                         t = self.getPokeString(m)
-                        if len(reply + theirs + t + ', ')<1000:
+                        if len(reply + theirs + t + ', ')<900:
                             theirs += t
                             tarray.append(t)
                         else:
@@ -413,14 +407,14 @@ class Trader:
                     #i+=1
                 if reply=='':
                     reply = 'No one :('
-            embed.add_field(name='People that Want what you Have', value=reply, inline=False)
+            embed.add_field(name='Haves', value=reply, inline=False)
             embed.set_footer(text=sender)
-            m = await self.client.edit_message(self.message, new_content='', embed=embed)
+            await self.message.edit(new_content='', embed=embed)
             if page > 1:
-                await m.add_reaction('\N{LEFTWARDS BLACK ARROW}')
-            await m.add_reaction(pages[page])
+                await self.message.add_reaction('\N{LEFTWARDS BLACK ARROW}')
+            await self.message.add_reaction(pages[page])
             if not reply_good:
-                await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
+                await self.message.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
         elif type=='Super Matches':
             super_matches_sorted = sorted(super_matches, key=lambda k:k[0]['owner'])
             i = 0
@@ -441,7 +435,7 @@ class Trader:
                             yours.append(y)
                         i+=1
                     r = '{}\'s {} <-> {}\n'.format(o, ', '.join(theirs), ', '.join(yours))
-                    if len(r+reply)<1000:
+                    if len(r+reply)<900:
                         reply += r
                     else:
                         reply_good = False
@@ -449,16 +443,16 @@ class Trader:
                     reply = 'No one :('
             embed.add_field(name='Super Matches', value=reply, inline=False)
             embed.set_footer(text=sender)
-            m = await self.client.edit_message(self.message, new_content='', embed=embed)
+            await self.message.edit(new_content='', embed=embed)
             if page > 1:
-                await m.add_reaction('\N{LEFTWARDS BLACK ARROW}')
-            await m.add_reaction(pages[page])
+                await self.message.add_reaction('\N{LEFTWARDS BLACK ARROW}')
+            await self.message.add_reaction(pages[page])
             if not reply_good:
-                await m.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
+                await self.message.add_reaction('\N{BLACK RIGHTWARDS ARROW}')
 
     async def doMatch(self, content):
         sender = self.message.author.name
-        if self.message.author.id=='81881597757882368' and len(content)>0 and content != "shiny":
+        if self.message.author.id==81881597757882368 and len(content)>0 and content != "shiny":
             sender = content
         sender_haves = self.getEntriesFromUser(sender, self.haves)
         sender_wants = self.getEntriesFromUser(sender, self.wants)
@@ -527,7 +521,7 @@ class Trader:
             while i < len(matches_h_w) and matches_h_w[i]['owner']==o and reply_good:
                 m = matches_h_w[i]
                 t = self.getPokeString(m)
-                if len(reply + theirs + t + ', ')<1000:
+                if len(reply + theirs + t + ', ')<900:
                     theirs += t + ', '
                     tarray.append(t)
                 else:
@@ -538,7 +532,7 @@ class Trader:
             #i+=1
         if reply=='':
             reply = 'No one :('
-        embed.add_field(name='People that Have what you Want', value=reply, inline=False)
+        embed.add_field(name='Wants', value=reply, inline=False)
         embed.set_footer(text=sender)
         m = await self.message.channel.send(content='', embed=embed)
         if not reply_good:
@@ -556,7 +550,7 @@ class Trader:
             while i < len(matches_w_h) and matches_w_h[i]['owner']==o and reply_good:
                 m = matches_w_h[i]
                 t = self.getPokeString(m)
-                if len(reply + theirs + t + ', ')<1000:
+                if len(reply + theirs + t + ', ') < 900:
                     theirs += t
                     tarray.append(t)
                 else:
@@ -567,7 +561,7 @@ class Trader:
             #i+=1
         if reply=='':
             reply = 'No one :('
-        embed.add_field(name='People that Want what you Have', value=reply, inline=False)
+        embed.add_field(name='Haves', value=reply, inline=False)
         embed.set_footer(text=sender)
         m = await self.message.channel.send(content='', embed=embed)
         if not reply_good:
@@ -594,7 +588,7 @@ class Trader:
                     yours.append(y)
                 i+=1
             r = '{}\'s {} <-> {}\n'.format(o, ', '.join(theirs), ', '.join(yours))
-            if len(r+reply)<1000:
+            if len(r+reply)<900:
                 reply += r
             else:
                 reply_good = False
@@ -620,7 +614,7 @@ class Trader:
 
     async def doProfile(self, content):
         sender = self.message.author.name
-        if self.message.author.id=='81881597757882368' and len(content)>0:
+        if self.message.author.id==81881597757882368 and len(content)>0:
             sender = content
         sender_haves = sorted(self.getEntriesFromUser(sender, self.haves), key=lambda k:k['pokemon'].lower())
         sender_wants = sorted(self.getEntriesFromUser(sender, self.wants), key=lambda k:k['pokemon'].lower())
@@ -633,13 +627,22 @@ class Trader:
         embed.set_author(name=sender)
         reply = ''
         for m in sender_wants:
+            if len(reply) > 1000:
+                break
             if m['active']:
                 reply += '{}\n'.format(self.getPokeString(m))
         if reply=='':
             reply = 'Nothing'
         embed.add_field(name='What you want:', value=reply, inline=False)
+        await self.message.channel.send(content='', embed=embed)
+
+        # Send separately becauase it could be too big
+        embed = discord.Embed()
+        embed.set_author(name=sender)
         reply = ''
         for m in sender_haves:
+            if len(reply) > 1000:
+                break
             if m['active']:
                 reply += '{}\n'.format(self.getPokeString(m))
         if reply=='':
